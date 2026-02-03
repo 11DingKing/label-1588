@@ -1,0 +1,72 @@
+services:
+  # MySQL 数据库
+  mysql:
+    image: mysql:8.0
+    container_name: nestjs-auth-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root123456
+      MYSQL_DATABASE: nestjs_auth
+      MYSQL_USER: nestjs
+      MYSQL_PASSWORD: nestjs123456
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot123456"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - nestjs-network
+
+  # NestJS 后端服务
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nestjs-auth-backend
+    restart: unless-stopped
+    environment:
+      # 设为 development 以便演示，生产环境应设为 production
+      NODE_ENV: development
+      PORT: 3000
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USERNAME: nestjs
+      DB_PASSWORD: nestjs123456
+      DB_DATABASE: nestjs_auth
+      # 演示环境启用自动同步，生产环境应使用迁移
+      DB_SYNCHRONIZE: "true"
+      # 生产环境必须更换为强密钥（至少32位随机字符）
+      JWT_SECRET: demo-jwt-secret-change-in-production-123456789
+      JWT_EXPIRES_IN: 24h
+    ports:
+      - "8081:3000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - nestjs-network
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  nestjs-network:
+    driver: bridge
