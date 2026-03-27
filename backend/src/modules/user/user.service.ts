@@ -74,8 +74,15 @@ export class UserService {
       .take(pageSize)
       .getManyAndCount();
 
+    // 去除每个用户的 password 字段
+    const safeItems = items.map((user) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password, ...result } = user;
+      return result as Omit<User, 'password'>;
+    });
+
     return {
-      items,
+      items: safeItems,
       total,
       page,
       pageSize,
@@ -93,7 +100,9 @@ export class UserService {
       throw new NotFoundException(`用户 ID ${id} 不存在`);
     }
 
-    return user;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...result } = user;
+    return result as Omit<User, 'password'>;
   }
 
   /**
