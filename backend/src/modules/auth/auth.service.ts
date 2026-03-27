@@ -65,18 +65,18 @@ export class AuthService {
       throw new UnauthorizedException('用户名/邮箱或密码错误');
     }
 
+    // 检查用户状态（先于密码验证，避免对禁用用户执行不必要的 bcrypt 计算）
+    if (user.status === UserStatus.DISABLED) {
+      this.logger.warn(`Login failed - user disabled: ${loginDto.account}`);
+      throw new ForbiddenException('用户已被禁用，请联系管理员');
+    }
+
     // 验证密码
     const isPasswordValid = await user.comparePassword(loginDto.password);
 
     if (!isPasswordValid) {
       this.logger.warn(`Login failed - invalid password: ${loginDto.account}`);
       throw new UnauthorizedException('用户名/邮箱或密码错误');
-    }
-
-    // 检查用户状态
-    if (user.status === UserStatus.DISABLED) {
-      this.logger.warn(`Login failed - user disabled: ${loginDto.account}`);
-      throw new ForbiddenException('用户已被禁用，请联系管理员');
     }
 
     // 生成 Token
